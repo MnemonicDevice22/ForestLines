@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FOREST</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FOREST">
+<link rel="manifest" href="manifest.json">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --bg:#0a0a0a;
+  --text:#e8e3d8;
+  --border:#3a3530;
+  --muted:#5a5550;
+  --surface:#131210;
+  --accent:#c8a96e;
+  --card:#141210;
+  --mono:Menlo,'Cascadia Code','Consolas',monospace;
+  --header-fs:16px;
+  --body-fs:14px;
+  --small-fs:11px;
+  --c-tasks:#5a8ab0;
+  --c-log:#5a9e8e;
+  --c-quotes:#8a6ab0;
+  --c-projects:#c8a96e;
+  --c-media:#b06a8a;
+  --c-alerts:#c87a3a;
+}
+
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);overflow:hidden;-webkit-tap-highlight-color:transparent;}
+body{display:flex;flex-direction:column;height:100dvh;}
+
+/* ── HEADER ── */
+.hdr{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);flex-shrink:0;}
+.hdr-cell{padding:13px 10px;font-size:var(--header-fs);font-weight:bold;letter-spacing:0.08em;text-align:center;text-transform:uppercase;color:var(--text);}
+.hdr-cell:not(:last-child){border-right:1px solid var(--border);}
+.hdr-alerts{cursor:pointer;color:var(--c-alerts);}
+
+/* ── NAV ── */
+.nav{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.nav-btn{flex:1;background:none;border:none;border-right:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:9px 2px;cursor:pointer;letter-spacing:0.04em;text-transform:uppercase;text-align:center;transition:color 0.15s;}
+.nav-btn:last-child{border-right:none;}
+.nav-btn.active{color:var(--accent);}
+
+/* ── VIEWS ── */
+.view{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.view.active{display:flex;}
+
+/* ── INPUT BAR ── */
+.input-bar{flex-shrink:0;border-top:1px solid var(--border);display:flex;}
+.seed-input{flex:1;background:var(--bg);border:none;color:var(--text);font-family:var(--mono);font-size:var(--body-fs);padding:13px 16px;outline:none;resize:none;line-height:1.5;}
+.seed-input::placeholder{color:var(--muted);letter-spacing:0.3em;}
+.seed-submit{background:none;border:none;border-left:1px solid var(--border);color:var(--accent);font-size:18px;padding:0 20px;cursor:pointer;flex-shrink:0;min-width:56px;}
+
+/* ── OVERLAY ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;display:none;}
+.overlay.open{display:flex;align-items:flex-end;}
+.modal{background:var(--bg);border:1px solid var(--border);border-bottom:none;width:100%;padding:20px 16px 36px;animation:slideUp 0.22s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-label{font-size:var(--small-fs);color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:14px;}
+
+/* ── CATEGORY PICKER ── */
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.cat-btn{background:var(--card);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:var(--body-fs);padding:17px 10px;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;text-align:center;border-left-width:3px;}
+.cat-btn:active{opacity:0.6;}
+.cat-btn.c-tasks{border-left-color:var(--c-tasks);}
+.cat-btn.c-log{border-left-color:var(--c-log);}
+.cat-btn.c-quotes{border-left-color:var(--c-quotes);}
+.cat-btn.c-projects{border-left-color:var(--c-projects);}
+.cat-btn.c-media{border-left-color:var(--c-media);}
+.cat-btn.c-alerts{border-left-color:var(--c-alerts);}
+
+/* ── HOME ── */
+.home-list{flex:1;overflow-y:auto;scrollbar-width:none;}
+.home-list::-webkit-scrollbar{display:none;}
+.home-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border);min-height:52px;}
+.home-accent{width:3px;flex-shrink:0;}
+.home-body{flex:1;padding:11px 13px;}
+.home-text{font-size:var(--body-fs);line-height:1.6;margin-bottom:3px;color:var(--text);}
+.home-tag{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;}
+
+/* ── TASKS ── */
+.tasks-toolbar{display:flex;justify-content:space-between;align-items:center;padding:8px 13px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.toolbar-label{font-size:var(--small-fs);color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
+.clear-done-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:6px 11px;cursor:pointer;text-transform:uppercase;min-height:30px;}
+.clear-done-btn:active{background:var(--accent);color:var(--bg);border-color:var(--accent);}
+.tasks-list{flex:1;overflow-y:auto;padding:0 13px;scrollbar-width:none;}
+.tasks-list::-webkit-scrollbar{display:none;}
+.task-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);}
+.task-circle{width:24px;height:24px;border:1.5px solid var(--border);border-radius:50%;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.task-circle.done{background:var(--c-tasks);border-color:var(--c-tasks);}
+.task-circle.done::after{content:'✓';color:#fff;font-size:12px;}
+.task-text{flex:1;font-size:var(--body-fs);line-height:1.6;}
+.task-text.done{color:var(--muted);text-decoration:line-through;}
+.task-actions{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+.task-actions button{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 5px;min-width:26px;min-height:26px;display:flex;align-items:center;justify-content:center;}
+.task-actions button:active{color:var(--accent);}
+.quest-promote{font-size:10px;color:var(--c-projects);border:1px solid var(--c-projects) !important;border-radius:2px;padding:3px 5px !important;letter-spacing:0.04em;font-family:var(--mono);}
+
+/* ── QUESTS ── */
+.quests-divider{display:flex;align-items:center;padding:8px 13px;border-bottom:1px solid var(--border);border-top:1px solid var(--border);flex-shrink:0;background:var(--surface);}
+.quests-label{font-size:var(--small-fs);color:var(--c-projects);letter-spacing:0.12em;text-transform:uppercase;}
+.quests-list{overflow-y:auto;max-height:180px;padding:0 13px;scrollbar-width:none;}
+.quests-list::-webkit-scrollbar{display:none;}
+.quest-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);}
+.quest-text{flex:1;font-size:var(--body-fs);line-height:1.5;}
+.quest-xy{font-size:var(--body-fs);color:var(--accent);min-width:54px;text-align:center;}
+.quest-plus{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 8px;cursor:pointer;min-height:28px;}
+.quest-plus:active{background:var(--accent);color:var(--bg);}
+.quest-del{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:3px 5px;}
+
+/* ── LOG ── */
+.log-list{flex:1;overflow-y:auto;scrollbar-width:none;}
+.log-list::-webkit-scrollbar{display:none;}
+.log-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border);}
+.log-accent{width:3px;flex-shrink:0;background:var(--c-log);}
+.log-body{flex:1;padding:11px 13px;}
+.log-text{font-size:var(--body-fs);line-height:1.6;margin-bottom:4px;color:var(--text);}
+.log-time{font-size:10px;color:var(--c-log);}
+.log-del{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:10px;align-self:center;flex-shrink:0;}
+
+/* ── QUOTES ── */
+.quotes-list{flex:1;overflow-y:auto;scrollbar-width:none;}
+.quotes-list::-webkit-scrollbar{display:none;}
+.quote-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border);}
+.quote-accent{width:3px;flex-shrink:0;background:var(--c-quotes);}
+.quote-body{flex:1;padding:12px 13px;}
+.quote-text{font-size:var(--body-fs);line-height:1.7;margin-bottom:8px;color:var(--text);}
+.quote-footer{display:flex;align-items:center;gap:8px;}
+.quote-author{font-size:11px;color:var(--c-quotes);flex:1;}
+.add-author-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:5px 9px;cursor:pointer;text-transform:uppercase;min-height:28px;}
+.add-author-btn:disabled{opacity:0.25;cursor:default;}
+.quote-del{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:10px;align-self:center;flex-shrink:0;}
+
+/* author modal */
+.author-modal{background:var(--bg);border:1px solid var(--border);border-bottom:none;width:100%;padding:20px 16px 36px;animation:slideUp 0.22s ease;}
+.text-input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:var(--body-fs);padding:12px 13px;outline:none;margin-bottom:10px;}
+.text-input::placeholder{color:var(--muted);}
+.modal-save{width:100%;border:none;font-family:var(--mono);font-size:var(--body-fs);padding:13px;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;color:#fff;}
+
+/* ── ALERTS ── */
+.alerts-list{flex:1;overflow-y:auto;scrollbar-width:none;}
+.alerts-list::-webkit-scrollbar{display:none;}
+.alert-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border);}
+.alert-accent{width:3px;flex-shrink:0;background:var(--c-alerts);}
+.alert-body{flex:1;padding:11px 13px;display:flex;align-items:center;gap:10px;}
+.alert-text{flex:1;font-size:var(--body-fs);line-height:1.6;color:var(--text);cursor:pointer;}
+.alert-del{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:6px 8px;min-width:32px;min-height:32px;}
+
+/* ── PROJECTS ── */
+.proj-l1{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.proj-carousel-wrap{flex:0 0 auto;border-bottom:1px solid var(--border);}
+.proj-field-title{font-size:var(--header-fs);font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;text-align:center;padding:10px 0 7px;color:var(--c-projects);}
+.proj-columns{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border);}
+.proj-col{border-right:1px solid var(--border);height:190px;overflow-y:auto;padding:6px;}
+.proj-col:last-child{border-right:none;}
+.proj-col-head{font-size:var(--small-fs);letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:4px 4px 8px;text-align:center;cursor:pointer;}
+.proj-col-head:active{color:var(--accent);}
+.proj-card{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--c-projects);padding:7px 26px 7px 9px;margin-bottom:5px;font-size:13px;line-height:1.4;cursor:pointer;position:relative;}
+.proj-card-move{position:absolute;top:50%;right:5px;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:3px;min-width:22px;min-height:22px;display:flex;align-items:center;justify-content:center;}
+.proj-dots{display:flex;justify-content:center;gap:9px;padding:7px 0;}
+.proj-dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--border);background:none;cursor:pointer;padding:0;}
+.proj-dot.active{background:var(--c-projects);border-color:var(--c-projects);}
+
+/* field reorder controls */
+.proj-field-nav{display:flex;align-items:center;justify-content:center;gap:16px;padding:2px 0 6px;}
+.field-nav-btn{background:none;border:none;color:var(--muted);font-family:var(--mono);font-size:11px;cursor:pointer;padding:3px 8px;min-height:24px;}
+.field-nav-btn:active{color:var(--accent);}
+
+/* queue */
+.proj-queue-head{display:flex;align-items:center;justify-content:space-between;padding:7px 13px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.proj-queue-label{font-size:var(--small-fs);color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
+.add-field-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:5px 10px;cursor:pointer;text-transform:uppercase;}
+.proj-queue{flex:1;overflow-y:auto;scrollbar-width:none;}
+.proj-queue::-webkit-scrollbar{display:none;}
+.queue-row{display:flex;align-items:center;padding:11px 13px;border-bottom:1px solid var(--border);gap:8px;border-left:3px solid var(--c-projects);}
+.queue-text{flex:1;font-size:var(--body-fs);line-height:1.4;color:var(--text);cursor:pointer;}
+.queue-del-btn{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:3px 5px;min-width:28px;min-height:28px;display:flex;align-items:center;justify-content:center;}
+.proj-empty{color:var(--muted);font-size:var(--body-fs);text-align:center;padding:18px;}
+
+/* place seed modal */
+.place-modal{background:var(--bg);border:1px solid var(--border);border-bottom:none;width:100%;padding:20px 16px 36px;animation:slideUp 0.22s ease;max-height:70vh;overflow-y:auto;}
+.place-field-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+.place-field-name{font-size:var(--body-fs);color:var(--text);flex:1;text-transform:uppercase;letter-spacing:0.05em;}
+.place-btns{display:flex;gap:6px;}
+.place-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:6px 10px;cursor:pointer;text-transform:uppercase;min-height:30px;}
+.place-btn:active{background:var(--c-projects);color:#fff;border-color:var(--c-projects);}
+
+/* level 2 */
+.proj-l2{position:fixed;inset:0;background:var(--bg);z-index:150;display:none;flex-direction:column;}
+.proj-l2.open{display:flex;}
+.l2-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:13px 16px;flex-shrink:0;}
+.l2-back{background:none;border:none;color:var(--text);font-family:var(--mono);font-size:var(--body-fs);cursor:pointer;text-transform:uppercase;}
+.l2-title{font-size:13px;font-weight:bold;color:var(--c-projects);text-transform:uppercase;letter-spacing:0.08em;text-align:center;flex:1;}
+.l2-list{flex:1;overflow-y:auto;scrollbar-width:none;}
+.l2-list::-webkit-scrollbar{display:none;}
+.l2-card{display:flex;align-items:stretch;border-bottom:1px solid var(--border);}
+.l2-accent{width:3px;flex-shrink:0;background:var(--c-projects);}
+.l2-body{flex:1;padding:11px 13px;cursor:pointer;}
+.l2-text{font-size:var(--body-fs);line-height:1.6;color:var(--text);}
+.l2-empty{color:var(--muted);font-size:var(--body-fs);text-align:center;padding:36px;}
+
+/* ── MEDIA ── */
+.media-l1{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.media-carousel-wrap{flex:0 0 auto;border-bottom:1px solid var(--border);}
+.media-field-title{font-size:var(--header-fs);font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;text-align:center;padding:10px 0 7px;color:var(--c-media);}
+.media-columns{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border);}
+.media-col{border-right:1px solid var(--border);height:190px;overflow-y:auto;padding:6px;}
+.media-col:last-child{border-right:none;}
+.media-col-head{font-size:var(--small-fs);letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:4px 4px 8px;text-align:center;}
+.media-card{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--c-media);padding:7px 24px 7px 9px;margin-bottom:5px;font-size:13px;line-height:1.4;cursor:pointer;position:relative;}
+.media-card-del{position:absolute;top:4px;right:4px;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px;}
+.media-card-note{font-size:11px;color:var(--c-media);margin-top:4px;font-style:italic;}
+.media-dots{display:flex;justify-content:center;gap:9px;padding:7px 0;}
+.media-dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--border);background:none;cursor:pointer;padding:0;}
+.media-dot.active{background:var(--c-media);border-color:var(--c-media);}
+.media-queue-head{padding:7px 13px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.media-queue-label{font-size:var(--small-fs);color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;}
+.media-queue{flex:1;overflow-y:auto;scrollbar-width:none;}
+.media-queue::-webkit-scrollbar{display:none;}
+
+/* ── SEED EDITOR ── */
+.seed-editor{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column;}
+.seed-editor.open{display:flex;}
+.editor-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:13px 16px;flex-shrink:0;}
+.editor-back{background:none;border:none;color:var(--text);font-family:var(--mono);font-size:var(--body-fs);cursor:pointer;text-transform:uppercase;min-height:36px;}
+.editor-save{background:var(--accent);border:none;color:var(--bg);font-family:var(--mono);font-size:var(--body-fs);padding:8px 16px;cursor:pointer;text-transform:uppercase;min-height:36px;}
+.editor-textarea{flex:1;background:var(--bg);border:none;color:var(--text);font-family:var(--mono);font-size:var(--body-fs);padding:18px 16px;outline:none;resize:none;line-height:1.8;}
+
+/* ── ADD FIELD MODAL ── */
+.field-modal{background:var(--bg);border:1px solid var(--border);border-bottom:none;width:100%;padding:20px 16px 36px;animation:slideUp 0.22s ease;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-cell">FOREST</div>
+  <div class="hdr-cell">V1.5</div>
+  <div class="hdr-cell hdr-alerts" onclick="openAlerts()">!!!</div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="switchTab('home',this)">HOME</button>
+  <button class="nav-btn" onclick="switchTab('tasks',this)">TASKS</button>
+  <button class="nav-btn" onclick="switchTab('projects',this)">PROJ</button>
+  <button class="nav-btn" onclick="switchTab('log',this)">LOG</button>
+  <button class="nav-btn" onclick="switchTab('quotes',this)">QUOT</button>
+  <button class="nav-btn" onclick="switchTab('media',this)">MEDIA</button>
+</div>
+
+<!-- HOME -->
+<div class="view active" id="view-home">
+  <div class="home-list" id="home-list"></div>
+</div>
+
+<!-- TASKS -->
+<div class="view" id="view-tasks">
+  <div class="tasks-toolbar">
+    <span class="toolbar-label">TASKS</span>
+    <button class="clear-done-btn" onclick="clearDoneTasks()">CLEAR DONE</button>
+  </div>
+  <div class="tasks-list" id="tasks-list"></div>
+  <div class="quests-divider">
+    <span class="quests-label">QUESTS</span>
+  </div>
+  <div class="quests-list" id="quests-list"></div>
+</div>
+
+<!-- PROJECTS -->
+<div class="view" id="view-projects">
+  <div class="proj-l1">
+    <div class="proj-carousel-wrap">
+      <div class="proj-field-title" id="proj-field-title">—</div>
+      <div class="proj-field-nav">
+        <button class="field-nav-btn" onclick="reorderField(-1)">◂ MOVE</button>
+        <button class="field-nav-btn" onclick="reorderField(1)">MOVE ▸</button>
+      </div>
+      <div class="proj-columns">
+        <div class="proj-col" id="proj-active-col">
+          <div class="proj-col-head" onclick="openL2('active')">ACTIVE ›</div>
+        </div>
+        <div class="proj-col" id="proj-ideas-col">
+          <div class="proj-col-head" onclick="openL2('ideas')">IDEAS ›</div>
+        </div>
+      </div>
+      <div class="proj-dots" id="proj-dots"></div>
+    </div>
+    <div class="proj-queue-head">
+      <span class="proj-queue-label">QUEUE</span>
+      <button class="add-field-btn" onclick="openAddField()">+ NEW FIELD</button>
+    </div>
+    <div class="proj-queue" id="proj-queue"></div>
+  </div>
+</div>
+
+<!-- LOG -->
+<div class="view" id="view-log">
+  <div class="log-list" id="log-list"></div>
+</div>
+
+<!-- QUOTES -->
+<div class="view" id="view-quotes">
+  <div class="quotes-list" id="quotes-list"></div>
+</div>
+
+<!-- MEDIA -->
+<div class="view" id="view-media">
+  <div class="media-l1">
+    <div class="media-carousel-wrap">
+      <div class="media-field-title" id="media-field-title">—</div>
+      <div class="media-columns">
+        <div class="media-col" id="media-watchlist-col"><div class="media-col-head">WATCH LIST</div></div>
+        <div class="media-col" id="media-finished-col"><div class="media-col-head">FINISHED</div></div>
+      </div>
+      <div class="media-dots" id="media-dots"></div>
+    </div>
+    <div class="media-queue-head">
+      <span class="media-queue-label">TAP WATCH LIST ITEM TO MARK FINISHED</span>
+    </div>
+    <div class="media-queue" id="media-queue"></div>
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div class="view" id="view-alerts">
+  <div class="alerts-list" id="alerts-list"></div>
+</div>
+
+<!-- INPUT BAR -->
+<div class="input-bar" id="input-bar">
+  <textarea class="seed-input" id="seed-input" placeholder="..." rows="1"></textarea>
+  <button class="seed-submit" onclick="handleSeedSubmit()">▷</button>
+</div>
+
+<!-- CATEGORY PICKER -->
+<div class="overlay" id="cat-overlay" onclick="closeCatOverlay(event)">
+  <div class="modal">
+    <div class="modal-label">CHOOSE SEED TYPE</div>
+    <div class="cat-grid">
+      <button class="cat-btn c-tasks"    onclick="categorize('tasks')">TASKS</button>
+      <button class="cat-btn c-projects" onclick="categorize('projects')">PROJECTS</button>
+      <button class="cat-btn c-log"      onclick="categorize('log')">LOG</button>
+      <button class="cat-btn c-quotes"   onclick="categorize('quotes')">QUOTES</button>
+      <button class="cat-btn c-media"    onclick="categorize('media')">MEDIA</button>
+      <button class="cat-btn c-alerts"   onclick="categorize('alerts')">!!! ALERTS</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTHOR OVERLAY -->
+<div class="overlay" id="author-overlay" onclick="closeAuthorOverlay(event)">
+  <div class="author-modal">
+    <div class="modal-label">WHO SAID THIS?</div>
+    <input class="text-input" id="author-input" placeholder="Name..." type="text">
+    <button class="modal-save" style="background:var(--c-quotes);" onclick="saveAuthor()">SAVE</button>
+  </div>
+</div>
+
+<!-- PLACE SEED OVERLAY -->
+<div class="overlay" id="place-overlay" onclick="closePlaceOverlay(event)">
+  <div class="place-modal">
+    <div class="modal-label">PLACE SEED INTO FIELD</div>
+    <div id="place-fields-list"></div>
+  </div>
+</div>
+
+<!-- ADD FIELD OVERLAY -->
+<div class="overlay" id="field-overlay" onclick="closeFieldOverlay(event)">
+  <div class="field-modal">
+    <div class="modal-label">NEW FIELD NAME</div>
+    <input class="text-input" id="field-input" placeholder="E.G. AGRICULTURE" type="text">
+    <button class="modal-save" style="background:var(--c-projects);" onclick="saveNewField()">CREATE FIELD</button>
+  </div>
+</div>
+
+<!-- QUEST HOURS OVERLAY -->
+<div class="overlay" id="quest-overlay" onclick="closeQuestOverlay(event)">
+  <div class="author-modal">
+    <div class="modal-label">TOTAL HOURS FOR THIS QUEST?</div>
+    <input class="text-input" id="quest-input" placeholder="e.g. 120" type="number" min="1">
+    <button class="modal-save" style="background:var(--c-projects);" onclick="saveQuestHours()">SET</button>
+  </div>
+</div>
+
+<!-- LEVEL 2 VIEW -->
+<div class="proj-l2" id="proj-l2">
+  <div class="l2-header">
+    <button class="l2-back" onclick="closeL2()">← BACK</button>
+    <div class="l2-title" id="l2-title">—</div>
+    <div style="width:60px;"></div>
+  </div>
+  <div class="l2-list" id="l2-list"></div>
+</div>
+
+<!-- SEED EDITOR -->
+<div class="seed-editor" id="seed-editor">
+  <div class="editor-header">
+    <button class="editor-back" onclick="closeEditor()">← BACK</button>
+    <button class="editor-save" onclick="saveEditorContent()">SAVE</button>
+  </div>
+  <textarea class="editor-textarea" id="editor-textarea" placeholder="..."></textarea>
+</div>
+
+<script>
+// ── AUDIO ──
+const actx=new(window.AudioContext||window.webkitAudioContext)();
+const CHORDS={cmaj:[523,659,784],fmaj:[349,440,523],dmaj:[587,740,880],cext:[523,659,784,1047]};
+const BASE_IDS=['cmaj','fmaj','dmaj'];
+function scheduleChime(freqs){
+  if(actx.state==='suspended') actx.resume();
+  const vol=0.22/freqs.length;
+  freqs.forEach((freq,i)=>{
+    const isLast=i===freqs.length-1;
+    const t=actx.currentTime+i*0.105+(isLast?0.025:0);
+    const v=isLast?vol*2.0:vol;
+    const osc=actx.createOscillator(),gain=actx.createGain();
+    osc.type='sine'; osc.frequency.value=freq;
+    gain.gain.setValueAtTime(0,t);
+    gain.gain.linearRampToValueAtTime(v,t+0.001);
+    gain.gain.exponentialRampToValueAtTime(0.0001,t+0.801);
+    osc.connect(gain); gain.connect(actx.destination);
+    osc.start(t); osc.stop(t+0.85);
+  });
+}
+function playTaskChime(){
+  const id=Math.floor(Math.random()*6)===0?'cext':BASE_IDS[Math.floor(Math.random()*3)];
+  scheduleChime(CHORDS[id]);
+}
+
+// ── HAPTICS ──
+function haptic(p){
+  try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){}
+}
+const HAP_TAP=12;
+const HAP_DONE=[50,30,100];
+const HAP_SAVE=[15,10,15];
+const HAP_NAV=8;
+const HAP_DEL=25;
+
+// ── DEFAULT FIELDS ──
+const DEFAULT_FIELDS=['INTROSPECT','BODY HEALTH','SOCIAL LIFE','APP ADMIN','WRITING','MUSIC','CODE','FASHION','FOOD','AGRICULTURE','MATH','HISTORY'];
+
+// ── STATE ──
+function loadState(){
+  try{
+    const raw=localStorage.getItem('forest_v15');
+    if(raw){
+      const p=JSON.parse(raw);
+      if(!p.mediaData) p.mediaData={};
+      ['MOVIES & SERIES','MUSIC','BOOKS'].forEach(f=>{if(!p.mediaData[f]) p.mediaData[f]={watchlist:[],finished:[]};});
+      if(!p.projectFields) p.projectFields=[...DEFAULT_FIELDS];
+      if(!p.projectData) p.projectData={};
+      p.projectFields.forEach(f=>{if(!p.projectData[f]) p.projectData[f]={active:[],ideas:[]};});
+      if(!p.projectQueue) p.projectQueue=[];
+      if(!p.tasks) p.tasks=[];
+      if(!p.quests) p.quests=[];
+      if(!p.logs) p.logs=[];
+      if(!p.quotes) p.quotes=[];
+      if(!p.alerts) p.alerts=[];
+      if(!p.homeFeed) p.homeFeed=[];
+      return p;
+    }
+  }catch(e){}
+  const s={
+    tasks:[],quests:[],logs:[],quotes:[],alerts:[],homeFeed:[],
+    projectFields:[...DEFAULT_FIELDS],projectData:{},projectQueue:[],
+    mediaData:{'MOVIES & SERIES':{watchlist:[],finished:[]},'MUSIC':{watchlist:[],finished:[]},'BOOKS':{watchlist:[],finished:[]}}
+  };
+  DEFAULT_FIELDS.forEach(f=>{s.projectData[f]={active:[],ideas:[]};});
+  return s;
+}
+let S=loadState();
+function save(){ localStorage.setItem('forest_v15',JSON.stringify(S)); }
+function uid(){ return Date.now()+Math.random().toString(36).slice(2); }
+function esc(t){ const d=document.createElement('div');d.textContent=t;return d.innerHTML; }
+function fmtTime(ts){
+  const d=new Date(ts);
+  const hh=String(d.getHours()).padStart(2,'0');
+  const mm=String(d.getMinutes()).padStart(2,'0');
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return `${hh}:${mm} · ${days[d.getDay()]} ${d.getDate()}`;
+}
+const TYPE_COLORS={tasks:'var(--c-tasks)',log:'var(--c-log)',quotes:'var(--c-quotes)',projects:'var(--c-projects)',media:'var(--c-media)',alerts:'var(--c-alerts)'};
+const TYPE_LABELS={tasks:'TASK',log:'LOG',quotes:'QUOTE',projects:'PROJECT',media:'MEDIA',alerts:'ALERT'};
+
+// ── HOME ──
+function addToHomeFeed(text,type){
+  if(!S.homeFeed) S.homeFeed=[];
+  S.homeFeed.unshift({id:uid(),text,type,ts:Date.now()});
+  if(S.homeFeed.length>15) S.homeFeed=S.homeFeed.slice(0,15);
+}
+function renderHome(){
+  const list=document.getElementById('home-list');
+  list.innerHTML='';
+  if(!S.homeFeed||!S.homeFeed.length) return;
+  S.homeFeed.forEach(item=>{
+    const row=document.createElement('div');
+    row.className='home-row';
+    const color=TYPE_COLORS[item.type]||'var(--muted)';
+    row.innerHTML=`<div class="home-accent" style="background:${color};"></div><div class="home-body"><div class="home-text">${esc(item.text)}</div><div class="home-tag" style="color:${color};">${TYPE_LABELS[item.type]||item.type}</div></div>`;
+    list.appendChild(row);
+  });
+}
+
+// ── TAB SWITCHING ──
+let currentTab='home';
+function switchTab(tab,btn){
+  haptic(HAP_NAV);
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  currentTab=tab;
+  document.getElementById('input-bar').style.display=tab==='home'?'flex':'none';
+  if(tab==='home') renderHome();
+  if(tab==='tasks'){ renderTasks(); renderQuests(); }
+  if(tab==='projects') renderProjects();
+  if(tab==='log') renderLog();
+  if(tab==='quotes') renderQuotes();
+  if(tab==='media') renderMedia();
+}
+function openAlerts(){
+  haptic(HAP_TAP);
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-alerts').classList.add('active');
+  document.getElementById('input-bar').style.display='none';
+  currentTab='alerts';
+  renderAlerts();
+}
+
+// ── SEED INPUT ──
+const seedInput=document.getElementById('seed-input');
+seedInput.addEventListener('input',()=>{ seedInput.style.height='auto'; seedInput.style.height=Math.min(seedInput.scrollHeight,80)+'px'; });
+seedInput.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSeedSubmit();} });
+let pendingSeedText='';
+function handleSeedSubmit(){
+  const txt=seedInput.value.trim();
+  if(!txt) return;
+  pendingSeedText=txt; seedInput.value=''; seedInput.style.height='auto';
+  haptic(HAP_TAP); openCatOverlay();
+}
+
+// ── CATEGORY OVERLAY ──
+function openCatOverlay(){ document.getElementById('cat-overlay').classList.add('open'); }
+function closeCatOverlay(e){ if(e.target===document.getElementById('cat-overlay')) document.getElementById('cat-overlay').classList.remove('open'); }
+function categorize(type){
+  haptic(HAP_SAVE);
+  document.getElementById('cat-overlay').classList.remove('open');
+  const id=uid(),text=pendingSeedText; pendingSeedText='';
+  addToHomeFeed(text,type);
+  if(type==='tasks'){ S.tasks.push({id,text,done:false,ts:Date.now()}); if(currentTab==='tasks') renderTasks(); }
+  else if(type==='log'){ S.logs.unshift({id,text,ts:Date.now()}); if(currentTab==='log') renderLog(); }
+  else if(type==='quotes'){ S.quotes.unshift({id,text:'\u201c'+text+'\u201d',author:'',authorSet:false,ts:Date.now()}); if(currentTab==='quotes') renderQuotes(); }
+  else if(type==='alerts'){ S.alerts.unshift({id,text,ts:Date.now()}); if(currentTab==='alerts') renderAlerts(); }
+  else if(type==='projects'){ S.projectQueue.push({id,text}); if(currentTab==='projects') renderProjQueue(); }
+  else if(type==='media'){ const fn=MEDIA_FIELDS[currentMediaField]; S.mediaData[fn].watchlist.push({id,text,note:''}); if(currentTab==='media') renderMedia(); }
+  save(); renderHome();
+}
+
+// ── TASKS ──
+function renderTasks(){
+  const list=document.getElementById('tasks-list');
+  list.innerHTML='';
+  if(!S.tasks.length) return;
+  S.tasks.forEach((t,i)=>{
+    const row=document.createElement('div');
+    row.className='task-row';
+    row.innerHTML=`
+      <div class="task-circle${t.done?' done':''}" onclick="toggleTask('${t.id}')"></div>
+      <div class="task-text${t.done?' done':''}">${esc(t.text)}</div>
+      <div class="task-actions">
+        <button onclick="moveTask(${i},-1)">▲</button>
+        <button onclick="moveTask(${i},1)">▼</button>
+        <button class="quest-promote" onclick="promoteToQuest('${t.id}')">QUEST</button>
+        <button onclick="deleteTask('${t.id}')">✕</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+function toggleTask(id){
+  const t=S.tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.done=!t.done; save(); renderTasks();
+  if(t.done){ playTaskChime(); haptic(HAP_DONE); } else { haptic(HAP_TAP); }
+}
+function moveTask(i,dir){
+  const j=i+dir;
+  if(j<0||j>=S.tasks.length) return;
+  haptic(HAP_TAP);
+  [S.tasks[i],S.tasks[j]]=[S.tasks[j],S.tasks[i]];
+  save(); renderTasks();
+}
+function deleteTask(id){ haptic(HAP_DEL); S.tasks=S.tasks.filter(x=>x.id!==id); save(); renderTasks(); }
+function clearDoneTasks(){ haptic(HAP_TAP); S.tasks=S.tasks.filter(t=>!t.done); save(); renderTasks(); }
+
+// ── QUESTS ──
+let pendingQuestTaskId=null;
+function renderQuests(){
+  const list=document.getElementById('quests-list');
+  list.innerHTML='';
+  if(!S.quests||!S.quests.length) return;
+  S.quests.forEach(q=>{
+    const row=document.createElement('div');
+    row.className='quest-row';
+    const done=q.x>=q.y;
+    row.innerHTML=`
+      <div class="quest-text"${done?' style="color:var(--muted);text-decoration:line-through;"':''}>${esc(q.text)}</div>
+      <span class="quest-xy">${q.x}/${q.y}h</span>
+      <button class="quest-plus" onclick="addQuestHour('${q.id}')"${done?' disabled':''}>+1h</button>
+      <button class="quest-del" onclick="deleteQuest('${q.id}')">✕</button>`;
+    list.appendChild(row);
+  });
+}
+function promoteToQuest(taskId){
+  haptic(HAP_TAP);
+  pendingQuestTaskId=taskId;
+  document.getElementById('quest-input').value='';
+  document.getElementById('quest-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('quest-input').focus(),100);
+}
+function closeQuestOverlay(e){ if(e.target===document.getElementById('quest-overlay')) document.getElementById('quest-overlay').classList.remove('open'); }
+function saveQuestHours(){
+  const y=parseInt(document.getElementById('quest-input').value);
+  if(!y||y<1) return;
+  const t=S.tasks.find(x=>x.id===pendingQuestTaskId);
+  if(!t) return;
+  if(!S.quests) S.quests=[];
+  S.quests.push({id:uid(),text:t.text,x:0,y});
+  S.tasks=S.tasks.filter(x=>x.id!==pendingQuestTaskId);
+  save(); haptic(HAP_SAVE);
+  document.getElementById('quest-overlay').classList.remove('open');
+  renderTasks(); renderQuests();
+}
+function addQuestHour(id){
+  const q=S.quests.find(x=>x.id===id);
+  if(!q||q.x>=q.y) return;
+  q.x=Math.min(q.x+1,q.y); save(); haptic(HAP_SAVE);
+  if(q.x>=q.y){ playTaskChime(); haptic(HAP_DONE); }
+  renderQuests();
+}
+function deleteQuest(id){ haptic(HAP_DEL); S.quests=S.quests.filter(x=>x.id!==id); save(); renderQuests(); }
+document.getElementById('quest-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();saveQuestHours();} });
+
+// ── LOG ──
+function renderLog(){
+  const list=document.getElementById('log-list');
+  list.innerHTML='';
+  if(!S.logs.length) return;
+  S.logs.forEach(l=>{
+    const row=document.createElement('div');
+    row.className='log-row';
+    row.innerHTML=`<div class="log-accent"></div><div class="log-body"><div class="log-text">${esc(l.text)}</div><div class="log-time">${fmtTime(l.ts)}</div></div><button class="log-del" onclick="deleteLog('${l.id}')">✕</button>`;
+    list.appendChild(row);
+  });
+}
+function deleteLog(id){ haptic(HAP_DEL); S.logs=S.logs.filter(x=>x.id!==id); save(); renderLog(); }
+
+// ── QUOTES ──
+function renderQuotes(){
+  const list=document.getElementById('quotes-list');
+  list.innerHTML='';
+  if(!S.quotes.length) return;
+  S.quotes.forEach(q=>{
+    const row=document.createElement('div');
+    row.className='quote-row';
+    const authorHtml=q.author?`<span class="quote-author">${esc(q.author)}</span>`:`<button class="add-author-btn"${q.authorSet?' disabled':''} onclick="openAuthorPopup('${q.id}')">+ AUTHOR</button>`;
+    row.innerHTML=`<div class="quote-accent"></div><div class="quote-body"><div class="quote-text">${esc(q.text)}</div><div class="quote-footer">${authorHtml}</div></div><button class="quote-del" onclick="deleteQuote('${q.id}')">✕</button>`;
+    list.appendChild(row);
+  });
+}
+let currentAuthorQuoteId=null;
+function openAuthorPopup(id){ haptic(HAP_TAP); currentAuthorQuoteId=id; document.getElementById('author-input').value=''; document.getElementById('author-overlay').classList.add('open'); setTimeout(()=>document.getElementById('author-input').focus(),100); }
+function closeAuthorOverlay(e){ if(e.target===document.getElementById('author-overlay')) document.getElementById('author-overlay').classList.remove('open'); }
+function saveAuthor(){
+  const name=document.getElementById('author-input').value.trim();
+  if(!name) return;
+  const q=S.quotes.find(x=>x.id===currentAuthorQuoteId);
+  if(q){ q.author='- '+name+'.'; q.authorSet=true; save(); }
+  document.getElementById('author-overlay').classList.remove('open');
+  haptic(HAP_SAVE); renderQuotes();
+}
+document.getElementById('author-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();saveAuthor();} });
+function deleteQuote(id){ haptic(HAP_DEL); S.quotes=S.quotes.filter(x=>x.id!==id); save(); renderQuotes(); }
+
+// ── ALERTS ──
+function renderAlerts(){
+  const list=document.getElementById('alerts-list');
+  list.innerHTML='';
+  if(!S.alerts.length) return;
+  S.alerts.forEach(a=>{
+    const row=document.createElement('div');
+    row.className='alert-row';
+    row.innerHTML=`<div class="alert-accent"></div><div class="alert-body"><div class="alert-text" onclick="openAlertEditor('${a.id}')">${esc(a.text)}</div><button class="alert-del" onclick="deleteAlert('${a.id}')">✕</button></div>`;
+    list.appendChild(row);
+  });
+}
+function deleteAlert(id){ haptic(HAP_DEL); S.alerts=S.alerts.filter(x=>x.id!==id); save(); renderAlerts(); }
+function openAlertEditor(id){
+  haptic(HAP_TAP);
+  const a=S.alerts.find(x=>x.id===id);
+  if(!a) return;
+  currentEditorContext={id,context:'alert',fieldName:null};
+  document.getElementById('editor-textarea').value=a.text;
+  document.getElementById('seed-editor').classList.add('open');
+}
+
+// ── PROJECTS ──
+let currentProjField=0;
+function renderProjects(){ renderProjDots(); renderProjField(); renderProjQueue(); }
+function renderProjDots(){
+  const wrap=document.getElementById('proj-dots');
+  wrap.innerHTML='';
+  S.projectFields.forEach((f,i)=>{
+    const dot=document.createElement('button');
+    dot.className='proj-dot'+(i===currentProjField?' active':'');
+    dot.onclick=()=>{ haptic(HAP_NAV); currentProjField=i; renderProjDots(); renderProjField(); };
+    wrap.appendChild(dot);
+  });
+}
+function renderProjField(){
+  const fn=S.projectFields[currentProjField];
+  document.getElementById('proj-field-title').textContent=fn||'—';
+  if(!fn) return;
+  const data=S.projectData[fn]||{active:[],ideas:[]};
+  const activeCol=document.getElementById('proj-active-col');
+  activeCol.innerHTML='<div class="proj-col-head" onclick="openL2(\'active\')">ACTIVE ›</div>';
+  data.active.forEach(seed=>{
+    const card=document.createElement('div');
+    card.className='proj-card';
+    card.innerHTML=`${esc(seed.text)}<button class="proj-card-move" onclick="event.stopPropagation();moveProjSeed('${fn}','active','ideas','${seed.id}')">→</button>`;
+    card.onclick=(e)=>{ if(e.target.classList.contains('proj-card-move')) return; openEditor(seed.id,'proj-active',fn); };
+    activeCol.appendChild(card);
+  });
+  const ideasCol=document.getElementById('proj-ideas-col');
+  ideasCol.innerHTML='<div class="proj-col-head" onclick="openL2(\'ideas\')">IDEAS ›</div>';
+  data.ideas.forEach(seed=>{
+    const card=document.createElement('div');
+    card.className='proj-card';
+    card.innerHTML=`${esc(seed.text)}<button class="proj-card-move" onclick="event.stopPropagation();moveProjSeed('${fn}','ideas','active','${seed.id}')">→</button>`;
+    card.onclick=(e)=>{ if(e.target.classList.contains('proj-card-move')) return; openEditor(seed.id,'proj-ideas',fn); };
+    ideasCol.appendChild(card);
+  });
+}
+function moveProjSeed(fieldName,fromCol,toCol,id){
+  haptic(HAP_TAP);
+  const data=S.projectData[fieldName];
+  const idx=data[fromCol].findIndex(x=>x.id===id);
+  if(idx===-1) return;
+  const [seed]=data[fromCol].splice(idx,1);
+  data[toCol].push(seed); save(); renderProjField();
+}
+
+// field reordering
+function reorderField(dir){
+  const j=currentProjField+dir;
+  if(j<0||j>=S.projectFields.length) return;
+  haptic(HAP_TAP);
+  [S.projectFields[currentProjField],S.projectFields[j]]=[S.projectFields[j],S.projectFields[currentProjField]];
+  currentProjField=j; save(); renderProjects();
+}
+
+function renderProjQueue(){
+  const queue=document.getElementById('proj-queue');
+  queue.innerHTML='';
+  if(!S.projectQueue||!S.projectQueue.length) return;
+  S.projectQueue.forEach(seed=>{
+    const row=document.createElement('div');
+    row.className='queue-row';
+    row.innerHTML=`<div class="queue-text" onclick="openPlaceSeed('${seed.id}')">${esc(seed.text)}</div><button class="queue-del-btn" onclick="deleteFromQueue('${seed.id}')">✕</button>`;
+    queue.appendChild(row);
+  });
+}
+function deleteFromQueue(id){ haptic(HAP_DEL); S.projectQueue=S.projectQueue.filter(x=>x.id!==id); save(); renderProjQueue(); }
+
+let pendingPlaceSeedId=null;
+function openPlaceSeed(id){
+  haptic(HAP_TAP); pendingPlaceSeedId=id;
+  const fl=document.getElementById('place-fields-list');
+  fl.innerHTML='';
+  S.projectFields.forEach(fn=>{
+    const row=document.createElement('div');
+    row.className='place-field-row';
+    row.innerHTML=`<div class="place-field-name">${esc(fn)}</div><div class="place-btns"><button class="place-btn" onclick="placeSeedInField('${fn}','active')">ACTIVE</button><button class="place-btn" onclick="placeSeedInField('${fn}','ideas')">IDEAS</button></div>`;
+    fl.appendChild(row);
+  });
+  document.getElementById('place-overlay').classList.add('open');
+}
+function closePlaceOverlay(e){ if(e.target===document.getElementById('place-overlay')) document.getElementById('place-overlay').classList.remove('open'); }
+function placeSeedInField(fieldName,col){
+  haptic(HAP_SAVE);
+  const idx=S.projectQueue.findIndex(x=>x.id===pendingPlaceSeedId);
+  if(idx===-1) return;
+  const [seed]=S.projectQueue.splice(idx,1);
+  if(!S.projectData[fieldName]) S.projectData[fieldName]={active:[],ideas:[]};
+  S.projectData[fieldName][col].push(seed);
+  save(); document.getElementById('place-overlay').classList.remove('open');
+  renderProjects();
+}
+
+function openAddField(){ haptic(HAP_TAP); document.getElementById('field-input').value=''; document.getElementById('field-overlay').classList.add('open'); setTimeout(()=>document.getElementById('field-input').focus(),100); }
+function closeFieldOverlay(e){ if(e.target===document.getElementById('field-overlay')) document.getElementById('field-overlay').classList.remove('open'); }
+function saveNewField(){
+  const name=document.getElementById('field-input').value.trim().toUpperCase();
+  if(!name||S.projectFields.includes(name)) return;
+  S.projectFields.push(name); S.projectData[name]={active:[],ideas:[]};
+  currentProjField=S.projectFields.length-1; save(); haptic(HAP_SAVE);
+  document.getElementById('field-overlay').classList.remove('open'); renderProjects();
+}
+document.getElementById('field-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();saveNewField();} });
+
+let currentL2Col=null;
+function openL2(col){
+  haptic(HAP_TAP);
+  const fn=S.projectFields[currentProjField];
+  if(!fn) return;
+  currentL2Col=col;
+  const data=S.projectData[fn]||{active:[],ideas:[]};
+  const seeds=data[col]||[];
+  document.getElementById('l2-title').textContent=fn+' · '+(col==='active'?'ACTIVE':'IDEAS');
+  const list=document.getElementById('l2-list');
+  list.innerHTML='';
+  seeds.forEach(seed=>{
+    const card=document.createElement('div');
+    card.className='l2-card';
+    card.innerHTML=`<div class="l2-accent"></div><div class="l2-body"><div class="l2-text">${esc(seed.text)}</div></div>`;
+    card.onclick=()=>openEditor(seed.id,'proj-'+col,fn);
+    list.appendChild(card);
+  });
+  document.getElementById('proj-l2').classList.add('open');
+}
+function closeL2(){ haptic(HAP_TAP); document.getElementById('proj-l2').classList.remove('open'); }
+
+let projTouchX=0;
+document.querySelector('.proj-carousel-wrap').addEventListener('touchstart',e=>{projTouchX=e.touches[0].clientX;},{passive:true});
+document.querySelector('.proj-carousel-wrap').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-projTouchX;
+  if(Math.abs(dx)>40){ if(dx<0&&currentProjField<S.projectFields.length-1) currentProjField++; else if(dx>0&&currentProjField>0) currentProjField--; haptic(HAP_NAV); renderProjDots(); renderProjField(); }
+},{passive:true});
+
+// ── MEDIA ──
+const MEDIA_FIELDS=['MOVIES & SERIES','MUSIC','BOOKS'];
+let currentMediaField=0;
+function renderMedia(){ renderMediaDots(); renderMediaField(); }
+function renderMediaDots(){
+  const wrap=document.getElementById('media-dots');
+  wrap.innerHTML='';
+  MEDIA_FIELDS.forEach((f,i)=>{
+    const dot=document.createElement('button');
+    dot.className='media-dot'+(i===currentMediaField?' active':'');
+    dot.onclick=()=>{ haptic(HAP_NAV); currentMediaField=i; renderMedia(); };
+    wrap.appendChild(dot);
+  });
+}
+function renderMediaField(){
+  const fn=MEDIA_FIELDS[currentMediaField];
+  document.getElementById('media-field-title').textContent=fn;
+  const data=S.mediaData[fn];
+  const wl=document.getElementById('media-watchlist-col');
+  wl.innerHTML='<div class="media-col-head">WATCH LIST</div>';
+  data.watchlist.forEach(item=>{
+    const card=document.createElement('div');
+    card.className='media-card';
+    card.innerHTML=esc(item.text)+`<button class="media-card-del" onclick="event.stopPropagation();deleteMediaItem('${fn}','watchlist','${item.id}')">✕</button>`;
+    card.onclick=(e)=>{ if(e.target.classList.contains('media-card-del')) return; haptic(HAP_TAP); moveToFinished(fn,item.id); };
+    wl.appendChild(card);
+  });
+  const fin=document.getElementById('media-finished-col');
+  fin.innerHTML='<div class="media-col-head">FINISHED</div>';
+  data.finished.forEach(item=>{
+    const card=document.createElement('div');
+    card.className='media-card';
+    card.innerHTML=esc(item.text)+(item.note?`<div class="media-card-note">${esc(item.note)}</div>`:'')+`<button class="media-card-del" onclick="event.stopPropagation();deleteMediaItem('${fn}','finished','${item.id}')">✕</button>`;
+    card.onclick=(e)=>{ if(e.target.classList.contains('media-card-del')) return; openEditor(item.id,'media-finished',fn); };
+    fin.appendChild(card);
+  });
+}
+function moveToFinished(fieldName,id){
+  const data=S.mediaData[fieldName];
+  const idx=data.watchlist.findIndex(x=>x.id===id);
+  if(idx===-1) return;
+  const [item]=data.watchlist.splice(idx,1);
+  if(!item.note) item.note='';
+  data.finished.push(item); save(); renderMedia();
+}
+function deleteMediaItem(fieldName,col,id){ haptic(HAP_DEL); S.mediaData[fieldName][col]=S.mediaData[fieldName][col].filter(x=>x.id!==id); save(); renderMedia(); }
+let mediaTouchX=0;
+document.querySelector('.media-carousel-wrap').addEventListener('touchstart',e=>{mediaTouchX=e.touches[0].clientX;},{passive:true});
+document.querySelector('.media-carousel-wrap').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-mediaTouchX;
+  if(Math.abs(dx)>40){ if(dx<0&&currentMediaField<MEDIA_FIELDS.length-1) currentMediaField++; else if(dx>0&&currentMediaField>0) currentMediaField--; haptic(HAP_NAV); renderMedia(); }
+},{passive:true});
+
+// ── SEED EDITOR ──
+let currentEditorContext=null;
+function openEditor(id,context,fieldName){
+  haptic(HAP_TAP); currentEditorContext={id,context,fieldName};
+  let seed=null;
+  if(context==='proj-active'||context==='proj-ideas'){
+    const col=context==='proj-active'?'active':'ideas';
+    seed=S.projectData[fieldName][col].find(x=>x.id===id);
+  } else if(context==='media-finished'){
+    seed=S.mediaData[fieldName].finished.find(x=>x.id===id);
+  }
+  if(!seed) return;
+  document.getElementById('editor-textarea').value=seed.text+(seed.note?'\n\n---\n'+seed.note:'');
+  document.getElementById('seed-editor').classList.add('open');
+}
+function closeEditor(){ haptic(HAP_TAP); document.getElementById('seed-editor').classList.remove('open'); currentEditorContext=null; }
+function saveEditorContent(){
+  if(!currentEditorContext) return;
+  const {id,context,fieldName}=currentEditorContext;
+  const val=document.getElementById('editor-textarea').value.trim();
+  if(context==='alert'){
+    const a=S.alerts.find(x=>x.id===id);
+    if(a) a.text=val;
+  } else if(context==='proj-active'||context==='proj-ideas'){
+    const col=context==='proj-active'?'active':'ideas';
+    const seed=S.projectData[fieldName][col].find(x=>x.id===id);
+    if(seed) seed.text=val;
+  } else if(context==='media-finished'){
+    const item=S.mediaData[fieldName].finished.find(x=>x.id===id);
+    if(item) item.note=val;
+  }
+  save(); haptic(HAP_SAVE); closeEditor();
+  if(currentTab==='projects') renderProjects();
+  if(currentTab==='media') renderMedia();
+  if(currentTab==='alerts') renderAlerts();
+}
+
+// ── SERVICE WORKER ──
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('/ForestLines/sw.js').catch(()=>{}); }
+
+// ── INIT ──
+document.getElementById('input-bar').style.display='flex';
+renderHome();
+</script>
+</body>
+</html>
